@@ -249,59 +249,38 @@ label.field-label{display:block;font-size:12px;font-weight:600;color:var(--text2
 /* ── A4縦タイムラインプレビュー（6日分・2列×3行） ──────── */
 .tlp-page{
   background:#FFFFFF;color:#2D2D2D;
-  width:900px; aspect-ratio:1/1.4142; /* A4縦比率 */
-  padding:22px; box-sizing:border-box;
+  width:560px; aspect-ratio:1/1.4142; /* A4縦比率 */
+  padding:14px; box-sizing:border-box;
   display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr 1fr;
-  gap:13px;
+  gap:8px;
   border-radius:6px;
 }
 body.dark .tlp-page{background:#252320;color:#ECE7DB;}
 .tlp-page .tlp-track-col{background:#FFFFFF;}
 body.dark .tlp-page .tlp-track-col{background:var(--bg2);}
-.tlp-cell{border:1px solid var(--border);border-radius:8px;padding:13px;display:flex;flex-direction:column;overflow:hidden;}
-.tlp-cell-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;flex-shrink:0;}
-.tlp-cell-title{font-size:18px;font-weight:700;color:var(--accent);}
-.tlp-cell-range{font-size:13px;color:var(--text3);}
-.tlp-cell-empty{flex:1;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text3);}
+.tlp-cell{border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;overflow:hidden;}
+.tlp-cell-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;flex-shrink:0;}
+.tlp-cell-title{font-size:11px;font-weight:700;color:var(--accent);}
+.tlp-cell-range{font-size:8px;color:var(--text3);}
+.tlp-cell-empty{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);}
 .tlp-row{display:flex;align-items:center;position:relative;flex:1;min-height:0;}
-.tlp-cov-row{flex:0 0 auto;height:5px;margin-top:3px;}
-.tlp-name-col{width:55px;flex-shrink:0;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:3px;overflow:hidden;}
+.tlp-cov-row{flex:0 0 auto;height:3px;margin-top:2px;}
+.tlp-name-col{width:34px;flex-shrink:0;font-size:7px;color:var(--text2);display:flex;align-items:center;gap:2px;overflow:hidden;}
 .tlp-cov-row .tlp-name-col{color:var(--text3);}
-.tlp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.tlp-dot{display:inline-block;width:5px;height:5px;border-radius:50%;flex-shrink:0;}
 .tlp-name-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tlp-track-col{flex:1;position:relative;height:100%;background:var(--bg2);border-radius:3px;overflow:visible;}
 .tlp-cov-track{overflow:hidden;}
 .tlp-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border);opacity:.5;}
-.tlp-bar{position:absolute;top:1px;bottom:1px;border-radius:2px;font-size:8px;font-weight:700;line-height:1;display:flex;align-items:center;padding-left:2px;overflow:visible;white-space:nowrap;z-index:2;}
+.tlp-bar{position:absolute;top:1px;bottom:1px;border-radius:2px;font-size:5px;font-weight:700;line-height:1;display:flex;align-items:center;padding-left:1px;overflow:visible;white-space:nowrap;z-index:2;}
 .tlp-cov-track{background:var(--bg2);border-radius:2px;}
 .tlp-cov-seg{position:absolute;top:0;bottom:0;}
 
 @media(max-width:768px){
-  .tlp-page{width:100%;max-width:420px;padding:14px;gap:8px;}
-  .tlp-cell{padding:8px;}
-  .tlp-cell-head{margin-bottom:4px;}
-  .tlp-cell-title{font-size:11px;}
-  .tlp-cell-range{font-size:8px;}
-  .tlp-cell-empty{font-size:10px;}
-  .tlp-cov-row{height:3px;margin-top:2px;}
-  .tlp-name-col{width:34px;font-size:7px;gap:2px;}
-  .tlp-dot{width:5px;height:5px;}
-  .tlp-bar{font-size:5px;padding-left:1px;}
+  .tlp-page{width:100%;max-width:420px;}
 }
 
-/* PNG保存時に手機でもデスクトップ用サイズを強制適用 */
-.tlp-force-desktop{width:900px!important;padding:22px!important;gap:13px!important;}
-.tlp-force-desktop .tlp-cell{padding:13px!important;}
-.tlp-force-desktop .tlp-cell-head{margin-bottom:6px!important;}
-.tlp-force-desktop .tlp-cell-title{font-size:18px!important;}
-.tlp-force-desktop .tlp-cell-range{font-size:13px!important;}
-.tlp-force-desktop .tlp-cell-empty{font-size:16px!important;}
-.tlp-force-desktop .tlp-cov-row{height:5px!important;margin-top:3px!important;}
-.tlp-force-desktop .tlp-name-col{width:55px!important;font-size:11px!important;gap:3px!important;}
-.tlp-force-desktop .tlp-dot{width:8px!important;height:8px!important;}
-.tlp-force-desktop .tlp-bar{font-size:8px!important;padding-left:2px!important;}
-
-
+/* ── Holiday Management (Notebook style) ─────────────── */
 .hol-row{display:flex;align-items:flex-start;gap:0;border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer;min-height:44px;}
 .hol-row:last-child{border-bottom:none;}
 .hol-row:hover{background:var(--bg2);}
@@ -2606,27 +2585,17 @@ function downloadTlPrintPng(){
   const isDark=document.body.classList.contains('dark');
   showLoadingOverlay(true);
 
-  const targetPxWidth = 3600;
-  const scale = targetPxWidth / 900; // 常に900px基準で固定
-
-  // 手機でもデスクトップ用サイズで出力するため一時的にクラスを付与
-  target.classList.add('tlp-force-desktop');
-  // レンダリング待ち
-  await new Promise(r => setTimeout(r, 80));
-
   html2canvas(target,{
-    scale,
+    scale:4,
     backgroundColor: isDark?'#252320':'#FFFFFF',
     useCORS:true,
   }).then(canvas=>{
-    target.classList.remove('tlp-force-desktop');
     const link=document.createElement('a');
     link.download=`週間シフト_${tlPrintDates[0]}.png`;
     link.href=canvas.toDataURL('image/png');
     link.click();
     showToast('画像を保存しました');
   }).catch(err=>{
-    target.classList.remove('tlp-force-desktop');
     console.error('html2canvas error:', err);
     showToast('画像化に失敗しました','error');
   }).finally(()=>{
