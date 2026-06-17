@@ -197,6 +197,9 @@ label.field-label{display:block;font-size:12px;font-weight:600;color:var(--text2
 
 /* ── Employee cards ───────────────────────────────────── */
 .emp-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;transition:box-shadow .2s;}
+.emp-drag-handle{cursor:grab;padding:4px 6px 4px 0;display:flex;align-items:center;flex-shrink:0;}
+.emp-drag-handle:active{cursor:grabbing;}
+.emp-drag-item.emp-drag-over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);background:var(--bg2);}
 .emp-card:hover{box-shadow:var(--shadow-lg);}
 .emp-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
 .emp-meta-box{background:var(--bg2);border-radius:9px;padding:8px 12px;}
@@ -1970,9 +1973,12 @@ function renderEmployees(){
   visibleEmps.forEach(emp=>{
     const cycleLabel=emp.cycleStart===1?'月初〜月末':`${emp.cycleStart}日〜翌月${emp.cycleStart-1}日`;
     html+=`
-    <div class="emp-card">
+    <div class="emp-card emp-drag-item" draggable="true" data-emp-id="${emp.id}">
       <div class="flex-center gap-10" style="justify-content:space-between;">
         <div class="flex-center gap-10">
+          <div class="emp-drag-handle" title="ドラッグして並び替え">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--text3);"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+          </div>
           <div class="emp-avatar" style="background:${avColor(emp.id)};width:42px;height:42px;font-size:16px;">${initials(emp.name)}</div>
           <div>
             <div style="font-weight:700;font-size:15px;">${emp.name}</div>
@@ -1998,6 +2004,43 @@ function renderEmployees(){
     </div>`;
   });
   document.getElementById('emp-list').innerHTML=html;
+  initEmpDragSort();
+}
+
+// ── Employee drag-sort ────────────────────────────────
+let _dragSrcId=null;
+function initEmpDragSort(){
+  const items=document.querySelectorAll('.emp-drag-item');
+  items.forEach(el=>{
+    el.addEventListener('dragstart',e=>{
+      _dragSrcId=el.dataset.empId;
+      e.dataTransfer.effectAllowed='move';
+      el.style.opacity='0.45';
+    });
+    el.addEventListener('dragend',()=>{ el.style.opacity=''; document.querySelectorAll('.emp-drag-item').forEach(i=>i.classList.remove('emp-drag-over')); });
+    el.addEventListener('dragover',e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; el.classList.add('emp-drag-over'); });
+    el.addEventListener('dragleave',()=>{ el.classList.remove('emp-drag-over'); });
+    el.addEventListener('drop',e=>{
+      e.preventDefault();
+      el.classList.remove('emp-drag-over');
+      const targetId=el.dataset.empId;
+      if(!_dragSrcId||_dragSrcId===targetId) return;
+      const srcIdx=EMPLOYEES.findIndex(emp=>emp.id===_dragSrcId);
+      const tgtIdx=EMPLOYEES.findIndex(emp=>emp.id===targetId);
+      if(srcIdx<0||tgtIdx<0) return;
+      const [moved]=EMPLOYEES.splice(srcIdx,1);
+      EMPLOYEES.splice(tgtIdx,0,moved);
+      saveEmpOrderToDb();
+      renderEmployees();
+    });
+  });
+}
+async function saveEmpOrderToDb(){
+  const sb=getSb();
+  const updates=EMPLOYEES.map((emp,i)=>({id:emp.id,name:emp.name,daily_limit:emp.dailyLimit,monthly_limit:emp.monthlyLimit,cycle_start:emp.cycleStart,sort_order:i,archived_from:emp.archivedFrom||null}));
+  const {error}=await sb.from('employees').upsert(updates);
+  if(error) console.error('saveEmpOrder:', error);
+  else { saveCache(); showToast('表示順を保存しました'); }
 }
 
 let empModalCurrentId = null;
@@ -2493,7 +2536,7 @@ function renderTlPrintPreview(){
 
     let header=`<div class="tlp-cell-head">
       <span class="tlp-cell-title">${parseInt(mo)}月${parseInt(dy)}日（${dow}）</span>
-      ${dayNote?`<span class="tlp-cell-range" style="color:var(--text2);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${dayNote}</span>`:''}
+      ${dayNote?`<span class="tlp-cell-range" style="color:var(--text2);max-width:62%;overflow:hidden;font-size:6.5px;line-height:1.35;white-space:normal;word-break:break-all;">${dayNote}</span>`:''}
     </div>`;
 
     if(!emps.length){
@@ -2553,7 +2596,7 @@ function renderTlPrintPreview(){
     });
 
     // coverage row
-    let cov=`<div class="tlp-row tlp-cov-row"><div class="tlp-name-col">人数</div><div class="tlp-track-col tlp-cov-track">`;
+    let cov=`<div class="tlp-row tlp-cov-row"><div class="tlp-name-col"></div><div class="tlp-track-col tlp-cov-track">`;
     slots.forEach(sl=>{
       const left=((sl.start-tlStartHour*60)/totalMins)*100;
       const w=(30/totalMins)*100;
@@ -2855,7 +2898,7 @@ function downloadTimelinePng(){
   const dow=DAYS_JA[new Date(selectedDate).getDay()];
   const pngNote=(getHolDay(selectedDate).note||'').trim();
   const pngNoteLines=pngNote?pngNote.split('\n').filter(l=>l.trim()):[];
-  const NOTE_LINE_H=14;
+  const NOTE_LINE_H=12;
   const actualTitleH=TITLE_H+(pngNoteLines.length>0?4+pngNoteLines.length*NOTE_LINE_H:0);
   roundRect(PADDING,PADDING,CHART_W,actualTitleH-4,10);
   ctx.fillStyle=C.bg2;
@@ -3024,12 +3067,6 @@ function downloadTimelinePng(){
 
   // ── Coverage bar
   const covY=curY;
-  // label
-  ctx.fillStyle=C.text3;
-  ctx.font=`600 10px 'Noto Sans JP',sans-serif`;
-  ctx.textAlign='right';
-  ctx.textBaseline='middle';
-  ctx.fillText('人数',trackX-4,covY+COV_H/2);
   // bg
   roundRect(trackX,covY,trackW,COV_H,4);
   ctx.fillStyle=C.bg2;
