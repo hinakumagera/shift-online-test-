@@ -289,7 +289,19 @@ body.dark .tlp-page .tlp-track-col{background:var(--bg2);}
   .tlp-bar{font-size:5px;padding-left:1px;}
 }
 
-/* ── Holiday Management (Notebook style) ─────────────── */
+/* PNG保存時に手機でもデスクトップ用サイズを強制適用 */
+.tlp-force-desktop{width:900px!important;padding:22px!important;gap:13px!important;}
+.tlp-force-desktop .tlp-cell{padding:13px!important;}
+.tlp-force-desktop .tlp-cell-head{margin-bottom:6px!important;}
+.tlp-force-desktop .tlp-cell-title{font-size:18px!important;}
+.tlp-force-desktop .tlp-cell-range{font-size:13px!important;}
+.tlp-force-desktop .tlp-cell-empty{font-size:16px!important;}
+.tlp-force-desktop .tlp-cov-row{height:5px!important;margin-top:3px!important;}
+.tlp-force-desktop .tlp-name-col{width:55px!important;font-size:11px!important;gap:3px!important;}
+.tlp-force-desktop .tlp-dot{width:8px!important;height:8px!important;}
+.tlp-force-desktop .tlp-bar{font-size:8px!important;padding-left:2px!important;}
+
+
 .hol-row{display:flex;align-items:flex-start;gap:0;border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer;min-height:44px;}
 .hol-row:last-child{border-bottom:none;}
 .hol-row:hover{background:var(--bg2);}
@@ -2595,19 +2607,26 @@ function downloadTlPrintPng(){
   showLoadingOverlay(true);
 
   const targetPxWidth = 3600;
-  const scale = targetPxWidth / target.offsetWidth;
+  const scale = targetPxWidth / 900; // 常に900px基準で固定
+
+  // 手機でもデスクトップ用サイズで出力するため一時的にクラスを付与
+  target.classList.add('tlp-force-desktop');
+  // レンダリング待ち
+  await new Promise(r => setTimeout(r, 80));
 
   html2canvas(target,{
     scale,
     backgroundColor: isDark?'#252320':'#FFFFFF',
     useCORS:true,
   }).then(canvas=>{
+    target.classList.remove('tlp-force-desktop');
     const link=document.createElement('a');
     link.download=`週間シフト_${tlPrintDates[0]}.png`;
     link.href=canvas.toDataURL('image/png');
     link.click();
     showToast('画像を保存しました');
   }).catch(err=>{
+    target.classList.remove('tlp-force-desktop');
     console.error('html2canvas error:', err);
     showToast('画像化に失敗しました','error');
   }).finally(()=>{
