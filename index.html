@@ -677,10 +677,10 @@ body.guest-mode .hol-edit-btn{display:none!important;}
       </div>
       <!-- Hire date section -->
       <div class="settings-section">
-        <h3>入社日（到職日）管理</h3>
+        <h3>勤務開始日管理</h3>
         <p style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.7;">
-          入社日を設定すると、その日付より前はシフト・休日管理などに表示されません。<br>
-          新入社員が着任前から一覧に表示されるのを防ぐことができます。
+          勤務開始日を設定すると、その日付より前はシフト・休日管理などに表示されません。<br>
+          勤務開始前のスタッフが一覧に表示されるのを防ぐことができます。
         </p>
         <div id="settings-hire-list"></div>
       </div>
@@ -853,7 +853,7 @@ body.guest-mode .hol-edit-btn{display:none!important;}
       </div>
       <!-- 入社日 -->
       <div>
-        <label class="field-label">入社日（到職日）</label>
+        <label class="field-label">勤務開始日</label>
         <input type="date" id="emp-hire-date" style="max-width:200px;">
         <div class="field-hint">設定した日付より前は全ページで非表示になります。未設定の場合は常時表示。</div>
       </div>
@@ -1418,7 +1418,7 @@ async function deleteDailyOverrideFromDb(empId,date){
 function activeEmployees(referenceDate){
   const ref = referenceDate || dateStr(new Date());
   return EMPLOYEES.filter(emp=>{
-    // 入社日チェック：入社日が未来ならその日まで非表示
+    // 勤務開始日チェック：開始日が未来ならその日まで非表示
     if(emp.hireDate && emp.hireDate > ref) return false;
     // 退職・非表示チェック
     if(!emp.archivedFrom) return true;
@@ -2002,7 +2002,7 @@ function renderEmployees(){
           <div>
             <div style="font-weight:700;font-size:15px;">${emp.name}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:2px;line-height:1.7;">日上限 ${formatHours(emp.dailyLimit)}<br>月上限 ${formatHours(emp.monthlyLimit)}</div>
-            ${emp.hireDate&&emp.hireDate>dateStr(new Date())?`<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(112,129,109,.15);color:var(--accent);margin-top:3px;display:inline-block;">入社待ち ${emp.hireDate}</span>`:''}
+            ${emp.hireDate&&emp.hireDate>dateStr(new Date())?`<span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(112,129,109,.15);color:var(--accent);margin-top:3px;display:inline-block;">勤務開始待ち ${emp.hireDate}</span>`:''}
           </div>
         </div>
         <div class="flex-center gap-6">
@@ -2082,7 +2082,7 @@ function openEmployeeModal(empId){
     +Array.from({length:30},(_,i)=>i+2).map(d=>`<option value="${d}">${d}日〜翌月${d-1}日</option>`).join('');
   cs.value=emp?.cycleStart||1;
   updateCycleHint();
-  // 入社日
+  // 勤務開始日
   document.getElementById('emp-hire-date').value=emp?.hireDate||'';
   // daily override notebook — existing employees only
   const sec=document.getElementById('emp-daily-override-section');
@@ -2289,7 +2289,7 @@ function renderMonthly(){
   const monthEndDate=`${mYear}-${pad(mMonth)}-${new Date(mYear,mMonth,0).getDate()}`;
   const monthEmps=EMPLOYEES.filter(emp=>{
     const[rs,re]=getMonthRange(emp.cycleStart,mYear,mMonth);
-    // 入社日チェック：月末より後に入社した従業員は非表示
+    // 勤務開始日チェック：月末より後に開始する従業員は非表示
     if(emp.hireDate && emp.hireDate > re) return false;
     if(!emp.archivedFrom) return true;
     return emp.archivedFrom > rs;
@@ -2411,9 +2411,9 @@ function renderHireList(){
   EMPLOYEES.forEach(emp=>{
     const isPending=emp.hireDate&&emp.hireDate>today;
     const statusBadge=isPending
-      ?`<span class="archive-badge" style="background:rgba(112,129,109,.15);color:var(--accent);">入社待ち（${emp.hireDate}〜）</span>`
+      ?`<span class="archive-badge" style="background:rgba(112,129,109,.15);color:var(--accent);">勤務開始待ち（${emp.hireDate}〜）</span>`
       :emp.hireDate
-        ?`<span class="archive-badge active">入社済（${emp.hireDate}〜）</span>`
+        ?`<span class="archive-badge active">勤務開始済（${emp.hireDate}〜）</span>`
         :`<span class="archive-badge" style="background:var(--bg3);color:var(--text3);">未設定</span>`;
     const hasDate=!!emp.hireDate;
     html+=`<div class="archive-emp-row">
@@ -2426,7 +2426,7 @@ function renderHireList(){
         <div class="archive-actions-row">
           <input type="date" class="archive-date-input" id="hire-date-${emp.id}"
             value="${emp.hireDate||''}"
-            title="入社日"
+            title="勤務開始日"
             style="display:none;">
           <button class="btn btn-ghost btn-sm" id="hire-btn-${emp.id}"
             onclick="toggleHireInput('${emp.id}')"
@@ -2473,17 +2473,17 @@ async function setHireDate(empId){
   renderHireList();
   renderSettings();
   const isPending=val>today;
-  showToast(isPending?`${emp.name} の入社日を設定しました（${val}以降に表示）`:`${emp.name} の入社日を登録しました（${val}〜）`);
+  showToast(isPending?`${emp.name} の勤務開始日を設定しました（${val}以降に表示）`:`${emp.name} の勤務開始日を登録しました（${val}〜）`);
 }
 
 async function clearHireDate(empId){
-  if(!confirm('入社日設定を解除しますか？')) return;
+  if(!confirm('勤務開始日設定を解除しますか？')) return;
   EMPLOYEES=EMPLOYEES.map(e=>e.id===empId?{...e,hireDate:null}:e);
   const emp=EMPLOYEES.find(e=>e.id===empId);
   if(emp) await saveEmployeeToDb(emp);
   renderHireList();
   renderSettings();
-  showToast(`${emp?.name} の入社日設定を解除しました`);
+  showToast(`${emp?.name} の勤務開始日設定を解除しました`);
 }
 // ═══════════════════════════════════════════════════════
 //  ARCHIVE MANAGEMENT
@@ -2799,7 +2799,7 @@ function renderTimeline(){
   // Compute coverage (how many staff at each 30-min slot)
   const slots=[];
   for(let m=tlStartHour*60;m<tlEndHour*60;m+=30) slots.push({start:m,count:0});
-  EMPLOYEES.forEach(emp=>{
+  tlEmps.forEach(emp=>{
     const segs=getShift(emp.id,selectedDate).segments||[];
     segs.forEach(seg=>{
       const s=timeToMin(seg.start), e=timeToMin(seg.end);
@@ -2810,7 +2810,7 @@ function renderTimeline(){
     });
   });
   const maxCount=Math.max(1,...slots.map(s=>s.count));
-  const shortageThreshold=Math.max(1,Math.round(EMPLOYEES.length*0.4));
+  const shortageThreshold=Math.max(1,Math.round(tlEmps.length*0.4));
 
   // Now time — handle midnight crossing
   const now=new Date();
@@ -2843,7 +2843,7 @@ function renderTimeline(){
 
   // Employee rows
   let rowsHtml='';
-  EMPLOYEES.forEach((emp, empIdx)=>{
+  tlEmps.forEach((emp, empIdx)=>{
     const segs=getShift(emp.id,selectedDate).segments||[];
     const total=calcMins(segs);
     const over=total>emp.dailyLimit;
