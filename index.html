@@ -2585,8 +2585,11 @@ function downloadTlPrintPng(){
   const isDark=document.body.classList.contains('dark');
   showLoadingOverlay(true);
 
+  const targetPxWidth = 2240;
+  const scale = targetPxWidth / target.offsetWidth;
+
   html2canvas(target,{
-    scale:4,
+    scale,
     backgroundColor: isDark?'#252320':'#FFFFFF',
     useCORS:true,
   }).then(canvas=>{
