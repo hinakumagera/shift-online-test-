@@ -266,7 +266,9 @@ body.dark .tlp-page .tlp-track-col{background:var(--bg2);}
 .tlp-cell-title{font-size:11px;font-weight:700;color:var(--accent);}
 .tlp-cell-range{font-size:8px;color:var(--text3);}
 .tlp-cell-empty{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);}
-.tlp-row{display:flex;align-items:center;position:relative;flex:1;min-height:0;}
+/* ── 行レイアウト: 最低高さを保証して従業員が多い週でも崩れない ── */
+.tlp-rows-wrap{flex:1;min-height:0;display:flex;flex-direction:column;}
+.tlp-row{display:flex;align-items:center;position:relative;flex:1;min-height:14px;}
 .tlp-cov-row{flex:0 0 auto;height:3px;margin-top:2px;}
 .tlp-name-col{width:34px;flex-shrink:0;font-size:7px;color:var(--text2);display:flex;align-items:center;gap:2px;overflow:hidden;}
 .tlp-cov-row .tlp-name-col{color:var(--text3);}
@@ -1334,7 +1336,9 @@ async function loadAll(){
     EMPLOYEES = (empRes.data||[]).map(r=>({
       id:r.id, name:r.name,
       dailyLimit:r.daily_limit, monthlyLimit:r.monthly_limit, cycleStart:r.cycle_start,
-      archivedFrom: r.archived_from||null
+      archivedFrom: r.archived_from||null,
+      hireDate: r.hire_date||null,
+      sortOrder: r.sort_order??999
     }));
     SHIFTS = {};
     (shiftRes.data||[]).forEach(r=>{ SHIFTS[`${r.employee_id}_${r.date}`]={segments:r.segments||[]}; });
@@ -1358,8 +1362,13 @@ async function saveEmployeeToDb(emp){
     archived_from: emp.archivedFrom||null,
     hire_date: emp.hireDate||null
   });
-  if(error) console.error('saveEmployee:', error);
-  else saveCache();
+  if(error){
+    console.error('saveEmployee:', error);
+    showToast('保存に失敗しました：'+(error.message||'DBエラー'),'error');
+    return false;
+  }
+  saveCache();
+  return true;
 }
 async function deleteEmployeeFromDb(id){
   const {error} = await getSb().from('employees').delete().eq('id',id);
@@ -2467,9 +2476,11 @@ async function setHireDate(empId){
   const val=input?.value;
   if(!val){showToast('日付を選択してください','error');return;}
   const today=dateStr(new Date());
+  const prevEmployees=EMPLOYEES;
   EMPLOYEES=EMPLOYEES.map(e=>e.id===empId?{...e,hireDate:val}:e);
   const emp=EMPLOYEES.find(e=>e.id===empId);
-  if(emp) await saveEmployeeToDb(emp);
+  const ok=emp&&await saveEmployeeToDb(emp);
+  if(!ok){ EMPLOYEES=prevEmployees; renderHireList(); return; }
   renderHireList();
   renderSettings();
   const isPending=val>today;
@@ -2478,9 +2489,11 @@ async function setHireDate(empId){
 
 async function clearHireDate(empId){
   if(!confirm('勤務開始日設定を解除しますか？')) return;
+  const prevEmployees=EMPLOYEES;
   EMPLOYEES=EMPLOYEES.map(e=>e.id===empId?{...e,hireDate:null}:e);
   const emp=EMPLOYEES.find(e=>e.id===empId);
-  if(emp) await saveEmployeeToDb(emp);
+  const ok=emp&&await saveEmployeeToDb(emp);
+  if(!ok){ EMPLOYEES=prevEmployees; renderHireList(); return; }
   renderHireList();
   renderSettings();
   showToast(`${emp?.name} の勤務開始日設定を解除しました`);
@@ -2655,7 +2668,7 @@ function renderTlPrintPreview(){
 
     let header=`<div class="tlp-cell-head">
       <span class="tlp-cell-title">${parseInt(mo)}月${parseInt(dy)}日（${dow}）</span>
-      ${dayNote?`<span class="tlp-cell-range" style="color:var(--text2);max-width:62%;overflow:hidden;font-size:6.5px;line-height:1.35;white-space:normal;word-break:break-all;">${dayNote}</span>`:''}
+      ${dayNote?`<span class="tlp-cell-range" style="color:var(--text2);max-width:62%;overflow:hidden;font-size:6.5px;line-height:1.35;white-space:normal;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${dayNote}</span>`:''}
     </div>`;
 
     if(!emps.length){
@@ -2726,7 +2739,7 @@ function renderTlPrintPreview(){
     });
     cov+=`</div></div>`;
 
-    return header+rows+cov;
+    return header+`<div class="tlp-rows-wrap">`+rows+cov+`</div>`;
   }
 
   let html='';
