@@ -271,14 +271,14 @@ body.dark .tlp-page .tlp-track-col{background:var(--bg2);}
 /* 每行固定高度，人數增減都不影響行高 */
 .tlp-row{display:flex;align-items:center;position:relative;height:18px;flex-shrink:0;}
 .tlp-cov-row{height:3px;margin-top:2px;flex-shrink:0;}
-.tlp-name-col{width:34px;flex-shrink:0;font-size:7px;color:var(--text2);display:flex;align-items:center;gap:2px;overflow:hidden;}
+.tlp-name-col{width:46px;flex-shrink:0;font-size:7px;color:var(--text2);display:flex;align-items:center;gap:2px;overflow:hidden;}
 .tlp-cov-row .tlp-name-col{color:var(--text3);}
 .tlp-dot{display:inline-block;width:5px;height:5px;border-radius:50%;flex-shrink:0;}
 .tlp-name-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tlp-track-col{flex:1;position:relative;height:100%;background:var(--bg2);border-radius:3px;overflow:hidden;}
 .tlp-cov-track{overflow:hidden;}
 .tlp-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border);opacity:.5;}
-.tlp-bar{position:absolute;top:1px;bottom:1px;border-radius:2px;font-size:5px;font-weight:700;line-height:1;display:flex;align-items:center;padding-left:1px;overflow:hidden;white-space:nowrap;z-index:2;}
+.tlp-bar{position:absolute;top:1px;bottom:1px;border-radius:2px;font-size:5px;font-weight:700;line-height:1;display:flex;align-items:center;padding-left:1px;overflow:visible;white-space:nowrap;z-index:2;}
 .tlp-cov-track{background:var(--bg2);border-radius:2px;}
 .tlp-cov-seg{position:absolute;top:0;bottom:0;}
 
@@ -2755,18 +2755,31 @@ function renderTlPrintPreview(){
   }
   wrap.innerHTML=`<div class="tlp-page">${html}</div>`;
 
-  // コンテナ幅に合わせて等比率縮小（手機対応）
+  // コンテナ幅に合わせて等比率縮小（手機対応、PC版は影響なし）
   requestAnimationFrame(()=>{
     const page=wrap.querySelector('.tlp-page');
     if(!page) return;
-    const container=wrap.parentElement;
-    const availW=container.clientWidth - 32; // padding 16px×2
+    // tl-print-preview-wrap の内側幅を基準にする（padding:16px×2=32px）
+    const outerWrap=document.getElementById('tl-print-preview-wrap');
+    const availW=(outerWrap ? outerWrap.clientWidth : wrap.clientWidth) - 32;
     const pageW=560;
-    const scale=availW<pageW ? availW/pageW : 1;
-    page.style.transform=scale<1?`scale(${scale})`:'';
-    page.style.transformOrigin='top left';
-    // コンテナの高さをscale後の実際の高さに合わせる
-    wrap.style.height=scale<1?`${page.offsetHeight*scale}px`:'';
+    if(availW >= pageW){
+      // PC版：scaleなし
+      page.style.transform='';
+      page.style.transformOrigin='';
+      wrap.style.height='';
+      wrap.style.width='';
+    } else {
+      // 手機版：等比率縮小
+      const scale=availW/pageW;
+      page.style.transform=`scale(${scale})`;
+      page.style.transformOrigin='top left';
+      // transformはレイアウト上のサイズに影響しないので、wrapの高さ・幅を手動で合わせる
+      const scaledH=page.offsetHeight*scale;
+      const scaledW=pageW*scale;
+      wrap.style.height=`${scaledH}px`;
+      wrap.style.width=`${scaledW}px`;
+    }
   });
 }
 
