@@ -730,21 +730,29 @@ body.guest-mode .hol-edit-btn{display:none!important;}
         <h3>ゲストパスワード設定</h3>
         <p style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.7;">
           ゲストは「シフト一覧」と「休日管理」のみ閲覧でき、編集はできません。<br>
-          管理者パスワードとは別の専用パスワードを設定してください。
+          スタッフごとに個別パスワードを設定できます。退職時はそのパスワードを削除してください。
         </p>
-        <div style="display:flex;flex-direction:column;gap:10px;">
+        <!-- 登録済みリスト -->
+        <div id="guest-pw-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
+        <!-- 新規追加フォーム -->
+        <div style="border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);">新しいパスワードを追加</div>
           <div>
-            <label class="field-label">ゲスト用パスワード</label>
-            <input type="password" id="pw-guest-new" placeholder="ゲスト用パスワード（4文字以上）" style="max-width:320px;">
+            <label class="field-label">名前（スタッフ名など）</label>
+            <input type="text" id="pw-guest-name" placeholder="例：やよい" style="max-width:320px;">
           </div>
           <div>
-            <label class="field-label">ゲスト用パスワード（確認）</label>
+            <label class="field-label">パスワード（4文字以上）</label>
+            <input type="password" id="pw-guest-new" placeholder="パスワード" style="max-width:320px;">
+          </div>
+          <div>
+            <label class="field-label">パスワード（確認）</label>
             <input type="password" id="pw-guest-confirm" placeholder="もう一度入力" style="max-width:320px;">
           </div>
           <div id="pw-guest-err" style="font-size:12px;color:var(--red);min-height:16px;font-weight:600;"></div>
-          <button class="btn btn-primary btn-sm" onclick="changeGuestPassword()" style="width:fit-content;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polyline points="20 6 9 17 4 12"/></svg>
-            ゲストパスワードを設定
+          <button class="btn btn-primary btn-sm" onclick="addGuestPassword()" style="width:fit-content;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            追加
           </button>
         </div>
       </div>
@@ -1105,24 +1113,24 @@ async function setStoredHash(hash){
   );
   return !error;
 }
-async function getGuestHash(){
+async function getGuestPasswords(){
   try{
     const {data, error} = await getSb()
-      .from('app_settings').select('value').eq('key','guest_password_hash').single();
-    if(error || !data) return null;
-    return data.value;
-  }catch{ return null; }
+      .from('app_settings').select('value').eq('key','guest_passwords').single();
+    if(error || !data) return [];
+    return JSON.parse(data.value)||[];
+  }catch{ return []; }
 }
-async function setGuestHash(hash){
+async function setGuestPasswords(arr){
   const {error} = await getSb().from('app_settings').upsert(
-    {key:'guest_password_hash', value:hash},
+    {key:'guest_passwords', value:JSON.stringify(arr)},
     {onConflict:'key'}
   );
   return !error;
 }
 
 // ── ログイン履歴の記録 ─────────────────────────────────
-async function recordLoginLog(role){
+async function recordLoginLog(role, guestName=null){
   let geo = {ip:null, city:null, region:null, country:null};
   try{
     const res = await fetch('https://ipapi.co/json/');
@@ -1134,6 +1142,7 @@ async function recordLoginLog(role){
   try{
     await getSb().from('login_logs').insert({
       role,
+      guest_name: guestName||null,
       ip: geo.ip, city: geo.city, region: geo.region, country: geo.country,
       user_agent: navigator.userAgent
     });
@@ -1179,13 +1188,14 @@ async function doLogin(){
       recordLoginLog('admin');
       return;
     }
-    // ゲストパスワードと比較
-    const guestHash = await getGuestHash();
-    if(guestHash && inputHash === guestHash){
+    // ゲストパスワードと比較（複数対応）
+    const guestPasswords = await getGuestPasswords();
+    const matched = guestPasswords.find(g => g.hash === inputHash);
+    if(matched){
       saveSession('guest');
       hideLoginScreen();
       startApp();
-      recordLoginLog('guest');
+      recordLoginLog('guest', matched.name);
       return;
     }
     setLoginErr('パスワードが正しくありません');
@@ -1233,27 +1243,67 @@ async function changePassword(){
 }
 
 // ── ゲストパスワード設定 ─────────────────────────────────
-async function changeGuestPassword(){
-  const nw  = document.getElementById('pw-guest-new')?.value||'';
-  const cfm = document.getElementById('pw-guest-confirm')?.value||'';
+async function addGuestPassword(){
+  const name = (document.getElementById('pw-guest-name')?.value||'').trim();
+  const nw   = document.getElementById('pw-guest-new')?.value||'';
+  const cfm  = document.getElementById('pw-guest-confirm')?.value||'';
   const errEl = document.getElementById('pw-guest-err');
   const setErr = msg => { if(errEl) errEl.textContent=msg; };
   setErr('');
-  if(!nw||!cfm){ setErr('全ての項目を入力してください'); return; }
+  if(!name){ setErr('名前を入力してください'); return; }
+  if(!nw||!cfm){ setErr('パスワードを入力してください'); return; }
   if(nw.length < 4){ setErr('4文字以上にしてください'); return; }
   if(nw !== cfm){ setErr('パスワードが一致しません'); return; }
-  // 管理者パスワードと同じにしないようチェック
   const adminHash = await getStoredHash();
   const newHash = await sha256(nw);
   if(adminHash && newHash === adminHash){ setErr('管理者パスワードとは別のものにしてください'); return; }
-  const ok = await setGuestHash(newHash);
+  const list = await getGuestPasswords();
+  if(list.find(g => g.name === name)){ setErr('同じ名前がすでに登録されています'); return; }
+  if(list.find(g => g.hash === newHash)){ setErr('同じパスワードがすでに登録されています'); return; }
+  list.push({name, hash:newHash});
+  const ok = await setGuestPasswords(list);
   if(ok){
+    document.getElementById('pw-guest-name').value='';
     document.getElementById('pw-guest-new').value='';
     document.getElementById('pw-guest-confirm').value='';
-    showToast('ゲストパスワードを設定しました');
+    showToast(`「${name}」のパスワードを追加しました`);
+    renderGuestPasswordList();
   } else {
     setErr('保存に失敗しました');
   }
+}
+async function deleteGuestPassword(name){
+  if(!confirm(`「${name}」のパスワードを削除しますか？`)) return;
+  const list = await getGuestPasswords();
+  const updated = list.filter(g => g.name !== name);
+  const ok = await setGuestPasswords(updated);
+  if(ok){
+    showToast(`「${name}」のパスワードを削除しました`);
+    renderGuestPasswordList();
+  } else {
+    showToast('削除に失敗しました','error');
+  }
+}
+async function renderGuestPasswordList(){
+  const el = document.getElementById('guest-pw-list');
+  if(!el) return;
+  const list = await getGuestPasswords();
+  if(list.length===0){
+    el.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0;">登録済みのゲストパスワードはありません</div>`;
+    return;
+  }
+  el.innerHTML=list.map(g=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg2);border-radius:8px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;color:var(--accent);"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+        <span style="font-size:13px;font-weight:600;">${g.name}</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="deleteGuestPassword('${g.name.replace(/'/g,"\\'")}')" style="color:var(--red);padding:4px 8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        削除
+      </button>
+    </div>
+  `).join('');
 }
 
 // ── ログイン履歴の表示 ────────────────────────────────
@@ -2410,6 +2460,7 @@ function renderSettings(){
   renderHireList();
   renderArchiveList();
   renderLoginLogs();
+  renderGuestPasswordList();
 }
 
 // ═══════════════════════════════════════════════════════
